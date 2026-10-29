@@ -21,6 +21,15 @@ Source of the contracts behind [fobo.fun](https://fobo.fun), a token launchpad o
 
 Hook permissions: `beforeInitialize`, `beforeAddLiquidity`, `beforeSwap`, `afterSwap`, `beforeDonate`, `beforeSwapReturnsDelta`, `afterSwapReturnsDelta`.
 
+## ABIs
+
+`abi/` holds each contract's ABI as JSON, built from this source. Key events for indexers:
+
+- `FoboFactory.TokenLaunched`: a new token and its pool (token, poolId, creator, quote, name, ticker, metadataURI).
+- `FoboHook.TaxPaid`: every swap's tax and quote volume. `FloorRaised` and `BoughtBack` track the floor.
+- `FoboVesting.Locked` / `Claimed`: locked supply.
+- Swaps and prices are Uniswap v4's own `PoolManager` `Initialize` / `Swap` events (pools with `hooks` = FoboHook).
+
 ## Build
 
 ```sh
