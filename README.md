@@ -29,7 +29,7 @@ Every owner power sits behind the 2-of-3 owner Safe, and the two that matter mos
 Safe (2-of-3)
  ├─ TimelockController (OpenZeppelin, 48h minimum delay; the Safe proposes and executes; no admin)
  │    └─ owns FoboBurner        every owner action on the buyback funds is announced 48h before it can run
- └─ owns FoboQuoteGate          which owns FoboFactory
+ └─ owns FoboFactoryGate          which owns FoboFactory
       ├─ allow(quote): only after probe() (exact receipt, no callback), 7,200 blocks (~24h) and an unchanged sample
       ├─ disallow(quote): immediate
       └─ the factory's other owner functions pass straight through (pause, signer rotation stay immediate)

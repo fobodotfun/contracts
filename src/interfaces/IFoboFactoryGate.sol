@@ -4,9 +4,9 @@ pragma solidity 0.8.26;
 import {IFoboFactory} from "./IFoboFactory.sol";
 import {IFoboHook} from "./IFoboHook.sol";
 
-/// @notice FoboQuoteGate: owns FoboFactory, so a quote can only be allowed after an on-chain probe. Spec:
+/// @notice FoboFactoryGate: owns FoboFactory, so a quote can only be allowed after an on-chain probe. Spec:
 ///         packages/contracts/README.md §3.1.
-interface IFoboQuoteGate {
+interface IFoboFactoryGate {
     /// @notice `amount` of `quote` arrived in full and sits in the gate as its sample from block `blockNumber`.
     event Probed(address indexed quote, uint256 amount, uint256 blockNumber);
     /// @notice `quote` was allowed on the factory: ETH or $FOBO unprobed, any other quote with its sample (`sample`

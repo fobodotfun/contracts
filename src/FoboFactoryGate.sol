@@ -7,9 +7,9 @@ import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {Owned} from "./base/Owned.sol";
 import {IFoboFactory} from "./interfaces/IFoboFactory.sol";
 import {IFoboHook} from "./interfaces/IFoboHook.sol";
-import {IFoboQuoteGate} from "./interfaces/IFoboQuoteGate.sol";
+import {IFoboFactoryGate} from "./interfaces/IFoboFactoryGate.sol";
 
-/// @title FoboQuoteGate
+/// @title FoboFactoryGate
 /// @notice Owns FoboFactory, so `setQuoteAllowed(quote, true)` can only be reached through `allow`, which takes an
 ///         on-chain probe first: the gate pulls a known amount of the quote and must receive exactly that (a fee on
 ///         transfer fails), nothing may call the gate while the transfer runs (a quote with transfer hooks fails), and
@@ -22,7 +22,7 @@ import {IFoboQuoteGate} from "./interfaces/IFoboQuoteGate.sol";
 ///      a quote that calls the payer rather than the gate, or a rebase that nets to zero over the window. A third party
 ///      sending the quote to the gate during the window also fails `allow` (the balance moved): probe again, the window
 ///      restarts. The sample stays in the gate until swept, so the probe costs nothing but time.
-contract FoboQuoteGate is IFoboQuoteGate, Owned {
+contract FoboFactoryGate is IFoboFactoryGate, Owned {
     using SafeERC20 for IERC20;
 
     /// @notice Blocks a sample must sit before `allow` reads it again: about 24 hours. On Robinhood Chain (an
@@ -39,7 +39,7 @@ contract FoboQuoteGate is IFoboQuoteGate, Owned {
         uint256 blockNumber; // when; 0 = no sample
     }
 
-    /// @inheritdoc IFoboQuoteGate
+    /// @inheritdoc IFoboFactoryGate
     mapping(address => Sample) public samples;
     /// @dev Set for the length of a probe's transferFrom: any call into the gate meanwhile is the quote calling back.
     bool internal probing;
@@ -64,7 +64,7 @@ contract FoboQuoteGate is IFoboQuoteGate, Owned {
     // quotes
     // =====================================================================================================
 
-    /// @inheritdoc IFoboQuoteGate
+    /// @inheritdoc IFoboFactoryGate
     function probe(address quote, uint256 amount) external notProbing onlyOwner {
         if (quote == address(0) || quote == factory.fobo()) revert NoProbeForThis();
         if (amount == 0) revert ZeroAmount();
@@ -80,7 +80,7 @@ contract FoboQuoteGate is IFoboQuoteGate, Owned {
         emit Probed(quote, amount, block.number);
     }
 
-    /// @inheritdoc IFoboQuoteGate
+    /// @inheritdoc IFoboFactoryGate
     function allow(address quote) external notProbing onlyOwner {
         uint256 sample;
         // ETH and $FOBO: the pairs every pool is priced against since launch, past any probe
@@ -97,13 +97,13 @@ contract FoboQuoteGate is IFoboQuoteGate, Owned {
         emit Allowed(quote, sample);
     }
 
-    /// @inheritdoc IFoboQuoteGate
+    /// @inheritdoc IFoboFactoryGate
     function disallow(address quote) external notProbing onlyOwner {
         delete samples[quote]; // a probe in flight is void with it
         factory.setQuoteAllowed(quote, false);
     }
 
-    /// @inheritdoc IFoboQuoteGate
+    /// @inheritdoc IFoboFactoryGate
     function sweepSample(address quote, address to) external notProbing onlyOwner {
         if (to == address(0)) revert ZeroAddress();
         if (samples[quote].blockNumber != 0) revert SampleHeld();
@@ -116,12 +116,12 @@ contract FoboQuoteGate is IFoboQuoteGate, Owned {
     // the factory's ownership and its other owner functions
     // =====================================================================================================
 
-    /// @inheritdoc IFoboQuoteGate
+    /// @inheritdoc IFoboFactoryGate
     function acceptFactory() external notProbing onlyOwner {
         Ownable2Step(address(factory)).acceptOwnership();
     }
 
-    /// @inheritdoc IFoboQuoteGate
+    /// @inheritdoc IFoboFactoryGate
     function handFactoryTo(address to) external notProbing onlyOwner {
         Ownable2Step(address(factory)).transferOwnership(to);
     }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Rehearses the governance change on a fork of Robinhood Chain mainnet, end to end, before the Owner Safe signs anything:
 #   1. anvil forks mainnet on port 8585 and the Safe is impersonated (anvil_impersonateAccount + a balance)
-#   2. script/Govern.s.sol deploys the TimelockController and FoboQuoteGate on the fork (from anvil's first account, as
+#   2. script/Govern.s.sol deploys the TimelockController and FoboFactoryGate on the fork (from anvil's first account, as
 #      a deployer key would) and prints the Safe transactions; this script sends each one from the Safe, in order, in
 #      one sitting (the timelock starts at delay 0 and raises it to 48 h itself at the end)
 #   3. every quote the factory allows today, ETH and $FOBO aside, goes through the gate as it would for real: the Safe

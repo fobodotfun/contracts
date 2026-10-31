@@ -8,13 +8,13 @@ import {FoboBoundedFeed} from "../src/FoboBoundedFeed.sol";
 import {FoboBurner} from "../src/FoboBurner.sol";
 import {FoboFactory} from "../src/FoboFactory.sol";
 import {FoboLimitOrders} from "../src/FoboLimitOrders.sol";
-import {FoboQuoteGate} from "../src/FoboQuoteGate.sol";
+import {FoboFactoryGate} from "../src/FoboFactoryGate.sol";
 import {IAggregatorV3} from "../src/interfaces/IAggregatorV3.sol";
 import {IFoboFactory} from "../src/interfaces/IFoboFactory.sol";
 import {IFoboLimitOrders} from "../src/interfaces/IFoboLimitOrders.sol";
 
 /// Deploys the governance contracts (README §8) and the bounded ETH/USD feed (README §15) and prints, in order, the
-/// Owner Safe transactions that put FoboBurner behind a 48 h timelock, FoboFactory behind FoboQuoteGate and
+/// Owner Safe transactions that put FoboBurner behind a 48 h timelock, FoboFactory behind FoboFactoryGate and
 /// FoboLimitOrders' ETH price behind the bounds. It sends none of them: they are the Safe's to sign
 /// (script/govern-rehearsal.sh sends them on a fork first).
 ///   SAFE          the Owner Safe: owner of the factory, the burner and the limit orders today, the gate's owner, the
@@ -24,7 +24,7 @@ import {IFoboLimitOrders} from "../src/interfaces/IFoboLimitOrders.sol";
 ///   LIMIT_ORDERS  FoboLimitOrders: its ETH pay token's feed (payTokens(address(0)): Chainlink's ETH/USD) becomes the
 ///                 bounded feed's source, its maxPriceAge is kept
 /// Deploys: OpenZeppelin's TimelockController (unmodified; proposer = executor = SAFE, no admin: only the timelock
-/// itself, through an operation, can change its roles or delay), FoboQuoteGate owned by SAFE, and FoboBoundedFeed on
+/// itself, through an operation, can change its roles or delay), FoboFactoryGate owned by SAFE, and FoboBoundedFeed on
 /// the live ETH/USD feed with [ETH_USD_MIN, ETH_USD_MAX] and ETH_USD_MAX_JUMP_BPS. The layout after the transactions:
 /// the timelock owns the burner only (every burner owner action public 48 h before it runs); the Safe owns the gate, so
 /// pausing launches, rotating the start signer and refusing a quote are immediate, while allowing one still takes the
@@ -45,7 +45,7 @@ contract Govern is Script {
     int256 public constant ETH_USD_MAX = 100_000e8;
     uint256 public constant ETH_USD_MAX_JUMP_BPS = 5_000;
 
-    function run() external returns (TimelockController timelock, FoboQuoteGate gate, FoboBoundedFeed ethUsdFeed) {
+    function run() external returns (TimelockController timelock, FoboFactoryGate gate, FoboBoundedFeed ethUsdFeed) {
         address safe = vm.envAddress("SAFE");
         FoboFactory factory = FoboFactory(vm.envAddress("FACTORY"));
         FoboBurner burner = FoboBurner(payable(vm.envAddress("BURNER")));
@@ -62,7 +62,7 @@ contract Govern is Script {
         safeOnly[0] = safe;
         vm.startBroadcast();
         timelock = new TimelockController(0, safeOnly, safeOnly, address(0));
-        gate = new FoboQuoteGate(IFoboFactory(address(factory)), safe);
+        gate = new FoboFactoryGate(IFoboFactory(address(factory)), safe);
         ethUsdFeed = new FoboBoundedFeed(eth.feed, ETH_USD_MIN, ETH_USD_MAX, ETH_USD_MAX_JUMP_BPS);
         vm.stopBroadcast();
         // the live answer passes the bounds today, else the first fill after the switch would revert
@@ -76,7 +76,7 @@ contract Govern is Script {
         require(address(gate.factory()) == address(factory), "gate factory");
 
         console2.log("TimelockController", address(timelock));
-        console2.log("FoboQuoteGate     ", address(gate));
+        console2.log("FoboFactoryGate     ", address(gate));
         console2.log("PROBE_BLOCKS      ", gate.PROBE_BLOCKS());
         console2.log("FoboBoundedFeed   ", address(ethUsdFeed));
         console2.log("  source (ETH/USD)", address(eth.feed));
