@@ -21,6 +21,38 @@ Source of the contracts behind [fobo.fun](https://fobo.fun), a token launchpad o
 
 Hook permissions: `beforeInitialize`, `beforeAddLiquidity`, `beforeSwap`, `afterSwap`, `beforeDonate`, `beforeSwapReturnsDelta`, `afterSwapReturnsDelta`.
 
+## Governance
+
+Every owner power sits behind the 2-of-3 owner Safe, and the two that matter most sit behind more:
+
+```
+Safe (2-of-3)
+ ├─ TimelockController (OpenZeppelin, 48h minimum delay; the Safe proposes and executes; no admin)
+ │    └─ owns FoboBurner        every owner action on the buyback funds is announced 48h before it can run
+ └─ owns FoboFactoryGate          which owns FoboFactory
+      ├─ allow(quote): only after probe() (exact receipt, no callback), 7,200 blocks (~24h) and an unchanged sample
+      ├─ disallow(quote): immediate
+      └─ the factory's other owner functions pass straight through (pause, signer rotation stay immediate)
+```
+
+`FoboBoundedFeed` wraps the Chainlink ETH/USD feed for `FoboLimitOrders`: same interface, every call forwarded, but an
+answer outside $100–$100,000 or a move over 50% against the previous round reverts instead of settling a fill.
+`script/Govern.s.sol` deploys the three and prints the Safe transactions; `script/govern-rehearsal.sh` runs the whole
+change on a mainnet fork first. Deployed 2026-10-31 on Robinhood Chain: TimelockController `0xEbcC8a82E8A008f75DE0Bfe9CB8A8DDb8D0f1B35`, FoboFactoryGate `0xf3c47512BFF9B8F38952945714d2d4eAa025aF88`, FoboBoundedFeed `0x8da13bb8C93Df56AAeBF8210CE063d3f9386d68f`.
+
+### Allowed quote tokens
+
+A pool's quote is what it trades against. Besides ETH and $FOBO, the factory allows these (each probed on a fork by the
+gate's rules; see `docs/audit/`): USDG `0x5fc5360d0400a0fd4f2af552add042d716f1d168`, and the stock tokens MSFT
+`0xe93237c50d904957cf27e7b1133b510c669c2e74`, TSLA `0x322f0929c4625ed5bad873c95208d54e1c003b2d`, SPCX
+`0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea`, GOOGL `0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3`, AMZN
+`0x12f190a9f9d7d37a250758b26824b97ce941bf54`, AAPL `0xaf3d76f1834a1d425780943c99ea8a608f8a93f9`, NVDA
+`0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec`, META `0xc0d6457c16cc70d6790dd43521c899c87ce02f35`.
+
+## Audit
+
+Coinsult's manual audit (2026-10-30), FOBO's response and the key-custody evidence are in `docs/audit/`.
+
 ## ABIs
 
 `abi/` holds each contract's ABI as JSON, built from this source. Key events for indexers:

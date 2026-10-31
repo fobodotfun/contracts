@@ -1311,6 +1311,94 @@ contract FoboTest is FoboBase {
         _assertNoRaiseFailed();
     }
 
+    /// The whole circulating supply in one pair of hands, sold into the floor in a single swap: the floor takes all of
+    /// it (no revert, no partial fill) and the price ends inside the band. The exit guarantee's margin is the hook's
+    /// rounding (supply up, capacity down): this exercises it rather than states it. Runs at the suite's 1000.
+    function testFuzz_wholeCirculatingSupplySellsInOneSwap(uint256 seed) public {
+        address whale = _randomMarket(seed);
+        _swap(whale, foboKey, false, -int256(FoboToken(fobo).balanceOf(whale)), 0);
+        assertEq(FoboToken(fobo).balanceOf(whale), 0, "every token sold");
+        _assertInsideTheBand();
+        _assertNoRaiseFailed();
+    }
+
+    /// The same supply sold in many small pieces (1–15% of what is left each, the last piece the rest), across blocks,
+    /// so raises land between them: every piece fills and the price ends inside the band.
+    function testFuzz_wholeCirculatingSupplySellsInManySmallSwaps(uint256 seed) public {
+        address whale = _randomMarket(seed);
+        uint256 left = FoboToken(fobo).balanceOf(whale);
+        for (uint256 i; left != 0; i++) {
+            seed = uint256(keccak256(abi.encode(seed, "piece", i)));
+            uint256 piece = i < 39 ? left * (seed % 15 + 1) / 100 : left;
+            if (piece == 0) piece = left;
+            if ((seed >> 8) % 3 == 0) vm.roll(vm.getBlockNumber() + 1);
+            if ((seed >> 16) % 5 == 0) vm.warp(vm.getBlockTimestamp() + 1 hours);
+            _swap(whale, foboKey, false, -int256(piece), 0);
+            left -= piece;
+        }
+        assertEq(FoboToken(fobo).balanceOf(whale), 0, "every token sold");
+        _assertInsideTheBand();
+        _assertNoRaiseFailed();
+    }
+
+    /// A $FOBO market with a random history, then every token outside the pool in one holder's hands: a launch at a
+    /// random start tick (the lowest createPool accepts to ~2x cheaper than $FOBO's), 25 random buys from 0.01 ETH to
+    /// ~5.4M ETH (log-uniform: the price runs through tranche starts), partial sells, block changes and pokes (raises)
+    /// by three holders, who then hand everything to the first.
+    /// @return whale the holder of the whole circulating supply
+    function _randomMarket(uint256 seed) internal returns (address whale) {
+        vm.recordLogs();
+        int24 steps = (FOBO_TICK + 2 * BAND_HALF - Ticks.MIN_START_TICK) / Ticks.SPACING;
+        int24 start = Ticks.MIN_START_TICK + int24(int256((seed >> 200) % uint256(int256(steps)))) * Ticks.SPACING;
+        (fobo,) = factory.launch(_params("FOBO", "FOBO", bytes32(0), 0, start));
+        foboKey = hook.keyFor(address(0), fobo);
+        address[] memory us = new address[](3);
+        for (uint256 i; i < 3; i++) {
+            us[i] = _user(string(abi.encodePacked("u", vm.toString(i))));
+            _approve(us[i], fobo);
+            vm.deal(us[i], 1e30);
+        }
+        for (uint256 i; i < 25; i++) {
+            seed = uint256(keccak256(abi.encode(seed, i)));
+            address u = us[seed % 3];
+            vm.warp(vm.getBlockTimestamp() + (seed >> 8) % 6 hours);
+            if ((seed >> 40) % 3 == 0) vm.roll(vm.getBlockNumber() + 1);
+            uint256 bal = FoboToken(fobo).balanceOf(u);
+            if ((seed >> 16) % 3 != 0 || bal == 0) {
+                uint256 amt = 0.01 ether * 2 ** ((seed >> 24) % 30); // 0.01 ETH .. ~5.4M ETH
+                _swap(u, foboKey, true, -int256(amt), amt);
+            } else {
+                _swap(u, foboKey, false, -int256(bal * ((seed >> 32) % 100 + 1) / 100), 0);
+            }
+            if ((seed >> 48) % 4 == 0) {
+                vm.roll(vm.getBlockNumber() + 1);
+                hook.poke(foboKey);
+            }
+        }
+        whale = us[0];
+        for (uint256 i = 1; i < 3; i++) {
+            uint256 bal = FoboToken(fobo).balanceOf(us[i]);
+            vm.prank(us[i]);
+            FoboToken(fobo).transfer(whale, bal);
+        }
+        uint256 inPool = FoboToken(fobo).balanceOf(address(pm)) + FoboToken(fobo).balanceOf(address(hook));
+        assertEq(FoboToken(fobo).balanceOf(whale), FoboToken(fobo).totalSupply() - inPool, "the whole circulating supply");
+    }
+
+    /// After the whole circulating supply is sold, the $FOBO pool's price sits inside its floor band, [tickF, tickF +
+    /// SPACING], or just above its top: never past its bottom (the exit guarantee). It ends above the top when the curve
+    /// above the band had more capacity than the supply: with no raise yet the supply all came out of that curve and
+    /// sells back to where it began, one tick above tickF (v4 rounds the final sqrt price down: measured 1 tick,
+    /// sqrtP = 0.999999999 x sqrtPrice(tickF)); after raises, by the floor's own margin (supply rounded up, capacity
+    /// down: measured up to 5 ticks, 0.02% in price). Up to one spacing (0.6%) is that margin; more would be a change
+    /// in the floor's sizing worth looking at.
+    function _assertInsideTheBand() internal view {
+        (int24 tickF,,,,) = _pool(foboKey);
+        int24 t = _tick(foboKey);
+        assertGe(t, tickF - Ticks.SPACING, "price ended in the band or within a spacing above it");
+        assertLe(t, tickF + Ticks.SPACING, "price ended inside the band, never past it");
+    }
+
     /// Same, with buys from 0.01 to ~5.4M ETH (log-uniform): the price runs through several tranche starts ($1B, $10B,
     /// $100B, ...) and in most runs the floor merges tranches on the way.
     /// forge-config: default.fuzz.runs = 64
