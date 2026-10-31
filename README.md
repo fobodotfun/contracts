@@ -38,7 +38,7 @@ Safe (2-of-3)
 `FoboBoundedFeed` wraps the Chainlink ETH/USD feed for `FoboLimitOrders`: same interface, every call forwarded, but an
 answer outside $100–$100,000 or a move over 50% against the previous round reverts instead of settling a fill.
 `script/Govern.s.sol` deploys the three and prints the Safe transactions; `script/govern-rehearsal.sh` runs the whole
-change on a mainnet fork first. Addresses are listed in `docs/audit/` once deployed.
+change on a mainnet fork first. Deployed 2026-10-31 on Robinhood Chain: TimelockController `0xEbcC8a82E8A008f75DE0Bfe9CB8A8DDb8D0f1B35`, FoboFactoryGate `0xf3c47512BFF9B8F38952945714d2d4eAa025aF88`, FoboBoundedFeed `0x8da13bb8C93Df56AAeBF8210CE063d3f9386d68f`.
 
 ### Allowed quote tokens
 
