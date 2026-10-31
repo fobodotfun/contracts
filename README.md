@@ -40,6 +40,27 @@ forge build
 
 Solidity 0.8.26, `via_ir`, optimizer 200 runs, EVM `cancun`. Uniswap v4-core is pinned at v4.0.0 (`lib/v4-core`), with the OpenZeppelin contracts it bundles.
 
+## Tests
+
+```sh
+forge test
+```
+
+`test/` is the full suite (377 tests, fuzz at 1000 runs each, about a minute): unit tests per contract, the attack
+scenarios kept as regression tests (`AttackEcon.t.sol`, `AttackRevenue.t.sol`, `Audit*.t.sol`), and the floor's fuzz
+and invariant suites, among them `Fobo.t.sol` (`testFuzz_everyoneCanAlwaysExitAboveTheFloor`,
+`testFuzz_floorHoldsAcrossTranches`) and `AuditInv.t.sol` (random trades across blocks, then every holder exits: no
+floor ever drops, no raise ever fails). `script/Deploy.s.sol` is the deploy script the tests run against.
+
+## Integrating
+
+- **Gas.** On the first swap of a block in a pool whose floor can rise, the hook reserves gas up front for the raise
+  (700k) and the fee credit (400k) and reverts `NeedGas` without it, so a swap can need about **1.2M gas** on that
+  block and far less on others. Estimate on a block where the raise fires, not the cheapest simulation.
+- **Referrals.** A swap's referral is credited to `tx.origin` unless it comes from `FoboLimitOrders`, which passes the
+  trader in `hookData`. Swaps from smart-contract wallets or bundlers credit the bundler; that share goes to the team.
+- **Sells fill completely or revert** (`PartialFill`): ask for what the pool can give.
+
 ## License
 
 MIT
