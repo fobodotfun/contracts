@@ -227,6 +227,15 @@ abstract contract LimitOrdersBase is RevenueBase {
         _expectFillRevertVia(id, amountIn, fee, _routeOf(id), err);
     }
 
+    /// The same, for an error with arguments (vm.expectRevert(bytes4) matches the selector alone only when the error
+    /// has none)
+    function _expectFillRevert(uint256 id, uint256 amountIn, uint256 fee, bytes memory err) internal {
+        IFoboLimitOrders.Hop[] memory route = _routeOf(id);
+        vm.prank(keeper, keeper);
+        vm.expectRevert(err);
+        limitOrders.fill(id, amountIn, fee, route);
+    }
+
     function _expectFillRevertVia(
         uint256 id,
         uint256 amountIn,

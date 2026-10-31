@@ -1,0 +1,64 @@
+{
+  "account": "<aws-account>",
+  "region": "eu-north-1",
+  "keys": {
+    "startSigner": {
+      "alias": "alias/fobo-start-signer",
+      "keyId": "d9b6211e-4171-4de9-a90d-2710b739e148",
+      "arn": "arn:aws:kms:eu-north-1:<aws-account>:key/d9b6211e-4171-4de9-a90d-2710b739e148",
+      "keySpec": "ECC_SECG_P256K1",
+      "keyUsage": "SIGN_VERIFY",
+      "origin": "AWS_KMS",
+      "keyManager": "CUSTOMER",
+      "keyState": "Enabled",
+      "creationDate": "2026-10-31T14:46:38.027000+04:00",
+      "signingAlgorithms": [
+        "ECDSA_SHA_256"
+      ],
+      "publicKeySpki": "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEYjzSx9bJmXRrAKXz0G9mDVvS6z1v2gK8y9vJsRUYjeyR1zDiXt2s2M+JZbpNsU7e5gIjv5Va5Hf64rQ7YFUFRA==",
+      "ethereumAddress": "0xB5E9fCB2016cEC6972cA3e11f81297D28747f8e0"
+    },
+    "registrar": {
+      "alias": "alias/fobo-registrar",
+      "keyId": "825b1a55-92dd-45d8-9809-915e0549c3d6",
+      "arn": "arn:aws:kms:eu-north-1:<aws-account>:key/825b1a55-92dd-45d8-9809-915e0549c3d6",
+      "keySpec": "ECC_SECG_P256K1",
+      "keyUsage": "SIGN_VERIFY",
+      "origin": "AWS_KMS",
+      "keyManager": "CUSTOMER",
+      "keyState": "Enabled",
+      "creationDate": "2026-10-31T14:46:45.800000+04:00",
+      "signingAlgorithms": [
+        "ECDSA_SHA_256"
+      ],
+      "publicKeySpki": "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEwjJ677JZod5/07Hv/3aJ4sagZkR5kn6brXnckSlwkVA8WiLnIcEsfIJGjidgD4eHIn8U/3XOe327vkLSqRfBbA==",
+      "ethereumAddress": "0x8d617e5D524A327449a6B0479742B5e830689dB7"
+    }
+  },
+  "serverIdentity": {
+    "iamUser": "<site-signer-user>",
+    "policy": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "kms:Sign",
+            "kms:GetPublicKey",
+            "kms:DescribeKey"
+          ],
+          "Resource": [
+            "arn:aws:kms:eu-north-1:<aws-account>:key/d9b6211e-4171-4de9-a90d-2710b739e148",
+            "arn:aws:kms:eu-north-1:<aws-account>:key/825b1a55-92dd-45d8-9809-915e0549c3d6"
+          ]
+        }
+      ]
+    },
+    "note": "The only identity the site holds: it can sign with the two keys and read their public keys, nothing else."
+  },
+  "howToVerify": [
+    "Origin AWS_KMS means the key material was generated inside KMS; such keys cannot be exported (no GetParametersForImport, no key material outside the HSM).",
+    "ethereumAddress = keccak256(uncompressed public key without the 0x04 prefix)[12:], from the public key returned by KMS GetPublicKey (SubjectPublicKeyInfo, base64 below).",
+    "Compare ethereumAddress to FoboFactory.startSigner() and FoboRevenue.registrar() on Robinhood Chain (4663) once the Safe has switched them."
+  ]
+}
